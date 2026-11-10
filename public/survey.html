@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>แบบประเมินความพึงพอใจการอบรม</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Firebase App & Database Compat SDK (v9.23.0) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <style>
+    body { font-family: 'Prompt', sans-serif; }
+    .rating-btn.active {
+      transform: scale(1.05);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.35);
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen py-6 px-4 flex flex-col justify-between">
+  
+  <div class="max-w-md mx-auto w-full">
+    <!-- Header Card -->
+    <div class="bg-gradient-to-br from-indigo-50/90 via-white to-purple-50/90 border border-indigo-200/90 rounded-3xl p-5 sm:p-6 mb-5 shadow-xs">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-700 text-xs font-bold mb-3">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        แบบประเมินออนไลน์ (ไม่ระบุตัวตน)
+      </div>
+      <h1 class="text-xl font-bold text-slate-900 mb-1">แบบประเมินความพึงพอใจโครงการอบรม</h1>
+      <p class="text-slate-600 text-xs leading-relaxed">
+        ความคิดเห็นของท่านมีคุณค่าอย่างยิ่งในการพัฒนาหลักสูตรและการจัดกิจกรรมครั้งต่อไป โปรดให้คะแนนตามความรู้สึกจริง (สเกล 1-5)
+      </p>
+    </div>
+
+    <!-- Firebase Config Missing Warning Banner (if not configured) -->
+    <div id="config-banner" class="hidden mb-4 p-3 bg-amber-50 border border-amber-300 rounded-2xl text-xs text-amber-800">
+      <div class="font-semibold mb-1">⚠️ โปรดตั้งค่า Firebase Config:</div>
+      <div>เปิดไฟล์นี้แล้วแทนที่ตัวแปร <code class="bg-amber-100 px-1 py-0.5 rounded text-amber-900 font-mono">firebaseConfig</code> ด้วยค่าจาก Firebase Console ของท่าน</div>
+    </div>
+
+    <!-- Already Submitted Card (Hidden by default) -->
+    <div id="submitted-view" class="hidden bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 text-center shadow-lg">
+      <div class="w-16 h-16 bg-emerald-50 text-emerald-600 border border-emerald-300 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
+        ✓
+      </div>
+      <h2 class="text-xl font-bold text-slate-900 mb-2">ท่านได้ส่งแบบประเมินแล้ว</h2>
+      <p class="text-slate-600 text-sm mb-6 leading-relaxed">
+        ระบบบันทึกความคิดเห็นของท่านเรียบร้อยแล้ว ขอบคุณที่สละเวลาให้ข้อมูลที่เป็นประโยชน์อย่างยิ่งครับ
+      </p>
+      <button id="resubmit-btn" class="text-xs text-slate-500 hover:text-slate-700 underline transition cursor-pointer">
+        (สำหรับทดสอบระบบ) ล้างสถานะเพื่อส่งอีกครั้ง
+      </button>
+    </div>
+
+    <!-- Survey Form -->
+    <form id="survey-form" class="space-y-4">
+      
+      <!-- Questions Container -->
+      <div id="questions-container" class="space-y-4"></div>
+
+      <!-- Feedback / Suggestions -->
+      <div class="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs">
+        <label for="feedback" class="block text-sm font-semibold text-slate-900 mb-1">
+          ข้อเสนอแนะหรือสิ่งที่ประทับใจเพิ่มเติม <span class="text-slate-400 text-xs font-normal">(ไม่บังคับ)</span>
+        </label>
+        <p class="text-xs text-slate-500 mb-2">เช่น หัวข้อที่อยากเรียนรู้เพิ่มเติม, สิ่งที่ชื่นชอบ, หรือสิ่งที่ควรปรับปรุง</p>
+        <textarea
+          id="feedback"
+          rows="3"
+          placeholder="พิมพ์ข้อเสนอแนะของท่านที่นี่..."
+          class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition resize-none"
+        ></textarea>
+      </div>
+
+      <!-- Submit Button -->
+      <button
+        type="submit"
+        id="submit-btn"
+        class="w-full py-4 px-6 bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold rounded-xl text-base shadow-md shadow-indigo-600/20 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+      >
+        <span>ส่งผลการประเมิน</span>
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+      </button>
+
+    </form>
+  </div>
+
+  <footer class="mt-8 text-center text-xs text-slate-400">
+    ระบบประเมินความพึงพอใจการอบรม • Realtime Workshop Evaluation
+  </footer>
+
+  <script>
+    // -------------------------------------------------------------
+    // 1. กำหนดคำถาม 5 ข้อ
+    // -------------------------------------------------------------
+    const questions = [
+      { id: 'q1', text: '1. ความรู้ความสามารถและเทคนิคการถ่ายทอดของวิทยากร' },
+      { id: 'q2', text: '2. ความตรงประเด็น ความครบถ้วน และความชัดเจนของเนื้อหา' },
+      { id: 'q3', text: '3. สื่อ เอกสาร และตัวอย่างที่ใช้ประกอบการบรรยาย' },
+      { id: 'q4', text: '4. การบริหารเวลาและบรรยากาศการมีส่วนร่วมในการเรียนรู้' },
+      { id: 'q5', text: '5. ประโยชน์และความคุ้มค่าในการนำความรู้ไปประยุกต์ใช้จริง' }
+    ];
+
+    const scoreLabels = [
+      { score: 1, label: 'ปรับปรุง', emoji: '😞', color: 'border-rose-400 text-rose-700 bg-rose-50' },
+      { score: 2, label: 'พอใช้', emoji: '😐', color: 'border-orange-400 text-orange-700 bg-orange-50' },
+      { score: 3, label: 'ปานกลาง', emoji: '🙂', color: 'border-amber-400 text-amber-800 bg-amber-50' },
+      { score: 4, label: 'ดี', emoji: '😊', color: 'border-emerald-400 text-emerald-700 bg-emerald-50' },
+      { score: 5, label: 'ดีมากที่สุด', emoji: '🤩', color: 'border-indigo-500 text-indigo-700 bg-indigo-50' }
+    ];
+
+    // เก็บค่าคะแนนเริ่มต้น (ค่าเริ่มต้น = 5 ดาว หรือว่างไว้)
+    const answers = { q1: 5, q2: 5, q3: 5, q4: 5, q5: 5 };
+
+    // -------------------------------------------------------------
+    // 2. ตั้งค่า Firebase Configuration
+    // แทนที่ด้วยค่าที่คัดลอกจาก Firebase Console > Project Settings
+    // -------------------------------------------------------------
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    let isFirebaseReady = false;
+    let db = null;
+
+    if (firebaseConfig.databaseURL && !firebaseConfig.databaseURL.includes('YOUR_PROJECT_ID')) {
+      try {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.database();
+        isFirebaseReady = true;
+      } catch (err) {
+        console.warn('Firebase init error:', err);
+      }
+    } else {
+      document.getElementById('config-banner').classList.remove('hidden');
+    }
+
+    // -------------------------------------------------------------
+    // 3. ตรวจสอบการตอบซ้ำด้วย localStorage
+    // -------------------------------------------------------------
+    const STORAGE_KEY = 'workshop_evaluation_done';
+    function checkPreviousSubmission() {
+      if (localStorage.getItem(STORAGE_KEY)) {
+        document.getElementById('survey-form').classList.add('hidden');
+        document.getElementById('submitted-view').classList.remove('hidden');
+      } else {
+        document.getElementById('survey-form').classList.remove('hidden');
+        document.getElementById('submitted-view').classList.add('hidden');
+      }
+    }
+
+    document.getElementById('resubmit-btn').addEventListener('click', () => {
+      localStorage.removeItem(STORAGE_KEY);
+      checkPreviousSubmission();
+    });
+
+    // -------------------------------------------------------------
+    // 4. Render คำถามและปุ่มสเกล 1-5 แบบ Mobile-first
+    // -------------------------------------------------------------
+    const container = document.getElementById('questions-container');
+
+    questions.forEach((q, idx) => {
+      const card = document.createElement('div');
+      card.className = 'bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs';
+
+      let buttonsHtml = '';
+      scoreLabels.forEach(item => {
+        const isSelected = answers[q.id] === item.score;
+        buttonsHtml += `
+          <button
+            type="button"
+            data-qid="${q.id}"
+            data-score="${item.score}"
+            class="rating-btn flex-1 py-2.5 px-1 rounded-xl flex flex-col items-center justify-center border transition-all cursor-pointer ${
+              isSelected ? item.color + ' active font-bold ring-2 ring-indigo-400' : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900'
+            }"
+          >
+            <span class="text-xl mb-0.5">${item.emoji}</span>
+            <span class="text-sm font-semibold">${item.score}</span>
+            <span class="text-[10px] opacity-80">${item.label}</span>
+          </button>
+        `;
+      });
+
+      card.innerHTML = `
+        <div class="flex items-start gap-2 mb-3">
+          <span class="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold flex items-center justify-center mt-0.5 border border-indigo-200">
+            ${idx + 1}
+          </span>
+          <p class="text-sm font-medium text-slate-900 leading-snug">${q.text}</p>
+        </div>
+        <div class="grid grid-cols-5 gap-1.5" id="group-${q.id}">
+          ${buttonsHtml}
+        </div>
+      `;
+
+      container.appendChild(card);
+    });
+
+    // ผูก Event Listener เมื่อกดเลือกคะแนน
+    container.addEventListener('click', (e) => {
+      const btn = e.target.closest('.rating-btn');
+      if (!btn) return;
+      const qid = btn.getAttribute('data-qid');
+      const score = Number(btn.getAttribute('data-score'));
+      answers[qid] = score;
+
+      const group = document.getElementById('group-' + qid);
+      group.querySelectorAll('.rating-btn').forEach(b => {
+        const bScore = Number(b.getAttribute('data-score'));
+        const item = scoreLabels.find(s => s.score === bScore);
+        if (bScore === score) {
+          b.className = `rating-btn flex-1 py-2.5 px-1 rounded-xl flex flex-col items-center justify-center border transition-all ${item.color} active font-bold ring-2 ring-indigo-400 cursor-pointer`;
+        } else {
+          b.className = 'rating-btn flex-1 py-2.5 px-1 rounded-xl flex flex-col items-center justify-center border transition-all border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-slate-100 hover:text-slate-900 cursor-pointer';
+        }
+      });
+    });
+
+    // -------------------------------------------------------------
+    // 5. ส่งผลการประเมิน
+    // -------------------------------------------------------------
+    const form = document.getElementById('survey-form');
+    const submitBtn = document.getElementById('submit-btn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const feedback = document.getElementById('feedback').value.trim();
+
+      const overall = Number(
+        ((answers.q1 + answers.q2 + answers.q3 + answers.q4 + answers.q5) / 5).toFixed(2)
+      );
+
+      const payload = {
+        scores: { ...answers },
+        overallScore: overall,
+        feedback: feedback,
+        createdAt: Date.now(),
+        userAgent: navigator.userAgent
+      };
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `
+        <svg class="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+        </svg>
+        <span>กำลังส่งข้อมูล...</span>
+      `;
+
+      try {
+        if (isFirebaseReady && db) {
+          // บันทึกลง Firebase Realtime Database
+          await db.ref('evaluations').push(payload);
+        } else {
+          // ถ้ายังไม่ได้ต่อ Firebase ให้ส่งผ่าน Local API ของแอป (fallback)
+          await fetch('/api/evaluations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        }
+
+        // ยิง Confetti เฉลิมฉลอง
+        if (window.confetti) {
+          confetti({
+            particleCount: 80,
+            spread: 70,
+            origin: { y: 0.6 }
+          });
+        }
+
+        // บันทึกสถานะว่าส่งแล้วลง localStorage
+        localStorage.setItem(STORAGE_KEY, Date.now().toString());
+        setTimeout(() => {
+          checkPreviousSubmission();
+        }, 600);
+
+      } catch (err) {
+        alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง: ' + err.message);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<span>ส่งผลการประเมิน</span>`;
+      }
+    });
+
+    // ตรวจสอบสถานะการส่งตอนโหลดหน้า
+    checkPreviousSubmission();
+  </script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "name": "Live Workshop Evaluation & Realtime Dashboard",
+  "description": "ระบบประเมินความพึงพอใจการอบรมแบบเรียลไทม์ พร้อมหน้า Dashboard สำหรับจอโปรเจกเตอร์ สแกน QR Code และดาวน์โหลด CSV",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
